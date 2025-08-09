@@ -32,6 +32,10 @@ export default function ChatRoom() {
   const [text, setText] = useState('');
   const [isMobile, setIsMobile] = useState(false);
 
+  // Пагинация (before)
+  const [olderPages, setOlderPages] = useState([]); // массив страниц в формате ответа API
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
   useEffect(() => {
     const handle = () => setIsMobile(window.innerWidth < 576);
     handle();
@@ -57,14 +61,31 @@ export default function ChatRoom() {
     retry: 2,
     refetchOnWindowFocus: true,
     keepPreviousData: true,
+    onSuccess: () => {
+      // Ничего не делаем: olderPages остаются, чтобы работал "Загрузить ещё"
+    },
   });
 
-  const itemsDesc = data?.items || [];
+  // items, hasMore, nextBefore — строго как в схеме API
+  const latestPage = data || { items: [], hasMore: false, nextBefore: null };
+
+  // Комбинируем текущую страницу (новые сообщения) и все догруженные страницы (более старые)
+  const combinedDescItems = useMemo(() => {
+    const base = Array.isArray(latestPage.items) ? latestPage.items : [];
+    const older = olderPages.flatMap((p) => (Array.isArray(p.items) ? p.items : []));
+    // Последовательность: новые -> старые (desc по времени)
+    return [...base, ...older];
+  }, [latestPage.items, olderPages]);
+
   const itemsAsc = useMemo(() => {
-    const arr = [...itemsDesc];
+    const arr = [...combinedDescItems];
     arr.reverse();
     return arr;
-  }, [itemsDesc]);
+  }, [combinedDescItems]);
+
+  // hasMore/nextBefore берём с последней страницы, если она есть, иначе — с первой
+  const combinedHasMore = olderPages.length > 0 ? !!olderPages[olderPages.length - 1].hasMore : !!latestPage.hasMore;
+  const combinedNextBefore = olderPages.length > 0 ? olderPages[olderPages.length - 1].nextBefore : latestPage.nextBefore;
 
   const mutation = useMutation({
     mutationFn: sendMessage,
@@ -146,6 +167,20 @@ export default function ChatRoom() {
     }
   };
 
+  const handleLoadMore = async () => {
+    if (!combinedHasMore || !combinedNextBefore || isLoadingMore) return;
+    try {
+      setIsLoadingMore(true);
+      const page = await getMessages({ limit: 50, before: combinedNextBefore });
+      setOlderPages((prev) => [...prev, page]);
+    } catch (err) {
+      const msg = err?.response?.data?.error || err?.message || 'Не удалось загрузить более старые сообщения';
+      messageApi.error(msg);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  };
+
   return (
     <div style={{ maxWidth: 920, margin: '0 auto', padding: isMobile ? 12 : 16, height: '100%' }}>
       {contextHolder}
@@ -161,6 +196,15 @@ export default function ChatRoom() {
             onScroll={handleScroll}
             style={{ flex: 1, overflowY: 'auto', padding: isMobile ? 12 : 16, background: '#fafafa' }}
           >
+            {/* Кнопка "Загрузить ещё" для пагинации по схеме API (before) */}
+            {combinedHasMore && (
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
+                <Button onClick={handleLoadMore} loading={isLoadingMore}>
+                  Загрузить ещё
+                </Button>
+              </div>
+            )}
+
             {isError && (
               <div style={{ marginBottom: 12 }}>
                 <Alert type="error" message="Ошибка загрузки" description={error?.message || 'Не удалось загрузить сообщения'} showIcon />
