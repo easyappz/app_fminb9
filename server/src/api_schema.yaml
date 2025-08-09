@@ -1,150 +1,145 @@
-openapi: 3.0.3
+openapi: 3.0.0
 info:
-  title: HTTP Chat API
-  version: "0.1.0"
-  description: >-
-    HTTP-based chat API scaffold (no sockets). This schema will be extended as features are implemented.
+  title: Easyappz Chat API
+  version: 1.0.0
+  description: |
+    HTTP API for a simple chat service. Built with Express and MongoDB (Mongoose).
+
+    Base URL: http://localhost:3001/api
+
 servers:
-  - url: /api
-tags:
-  - name: System
-    description: System/health endpoints
-  - name: Chat
-    description: HTTP Chat endpoints (to be implemented)
+  - url: http://localhost:3001/api
+    description: Local server
+
 paths:
   /health:
     get:
-      tags: [System]
       summary: Health check
-      description: Returns service health information
+      description: Returns server health information.
       responses:
         '200':
-          description: Service is healthy
+          description: OK
           content:
             application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: ok
-                  uptime:
-                    type: number
-                    description: Process uptime in seconds
-                  timestamp:
-                    type: string
-                    format: date-time
-        '500':
-          description: Internal error
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  error:
-                    type: string
-  /hello:
-    get:
-      tags: [System]
-      summary: Hello test endpoint
-      responses:
-        '200':
-          description: Returns greeting
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-        '500':
-          description: Error
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  error:
-                    type: string
-  /status:
-    get:
-      tags: [System]
-      summary: API status
-      responses:
-        '200':
-          description: Status info
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                  timestamp:
-                    type: string
-                    format: date-time
-        '500':
-          description: Error
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  error:
-                    type: string
-  /messages:
-    get:
-      tags: [Chat]
-      summary: List messages
-      description: Returns messages sorted by createdAt descending. Client can reverse for ascending order.
-      parameters:
-        - in: query
-          name: limit
-          required: false
-          description: Max messages to return (capped at 200). Default 50.
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 200
-            default: 50
-        - in: query
-          name: before
-          required: false
-          description: ISO date-time. Return messages created before this timestamp.
-          schema:
-            type: string
-            format: date-time
-      responses:
-        '200':
-          description: Messages list
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Message'
-        '400':
-          description: Invalid parameters
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  error:
-                    type: string
+              example:
+                status: ok
+                uptime: 123.456
+                timestamp: 2025-01-01T00:00:00.000Z
         '500':
           description: Server error
           content:
             application/json:
+              example:
+                error: Unexpected error details
+
+  /hello:
+    get:
+      summary: Demo hello endpoint
+      responses:
+        '200':
+          description: Hello
+          content:
+            application/json:
+              example:
+                message: Hello from API!
+        '500':
+          description: Server error
+          content:
+            application/json:
+              example:
+                error: Unexpected error details
+
+  /status:
+    get:
+      summary: Demo status endpoint
+      responses:
+        '200':
+          description: Status
+          content:
+            application/json:
+              example:
+                status: ok
+                timestamp: 2025-01-01T00:00:00.000Z
+        '500':
+          description: Server error
+          content:
+            application/json:
+              example:
+                error: Unexpected error details
+
+  /chat/messages:
+    get:
+      summary: List chat messages
+      description: |
+        Returns a descending (newest first) list of messages with keyset pagination.
+        Use `before` to get older messages.
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+          required: false
+          description: Max number of items to return (1..100, default 50)
+        - in: query
+          name: before
+          schema:
+            type: string
+            format: date-time
+          required: false
+          description: ISO8601 timestamp; return messages strictly before this time
+      responses:
+        '200':
+          description: List of messages
+          content:
+            application/json:
               schema:
                 type: object
                 properties:
-                  error:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Message'
+                  hasMore:
+                    type: boolean
+                  nextBefore:
                     type: string
+                    nullable: true
+                    description: ISO8601 timestamp to use as `before` for the next page
+              examples:
+                default:
+                  value:
+                    items:
+                      - _id: 665e2d5a8a4f4d4a7a0c1234
+                        author: Alice
+                        text: Hello world
+                        createdAt: 2025-01-01T10:00:00.000Z
+                        updatedAt: 2025-01-01T10:00:00.000Z
+                      - _id: 665e2d5a8a4f4d4a7a0c5678
+                        author: Bob
+                        text: Hi!
+                        createdAt: 2025-01-01T09:59:00.000Z
+                        updatedAt: 2025-01-01T09:59:00.000Z
+                    hasMore: true
+                    nextBefore: 2025-01-01T09:59:00.000Z
+        '400':
+          description: Invalid request (e.g., bad `before` value)
+          content:
+            application/json:
+              example:
+                error: Invalid "before" date format
+        '500':
+          description: Server error
+          content:
+            application/json:
+              example:
+                error: Unexpected error details
+
     post:
-      tags: [Chat]
-      summary: Create a message
-      description: Creates a new message. Body size is limited to 1mb on the server.
+      summary: Create a new message
+      description: Creates and returns a new message document.
       requestBody:
         required: true
         content:
@@ -155,37 +150,48 @@ paths:
               properties:
                 author:
                   type: string
-                  minLength: 1
-                  maxLength: 100
+                  maxLength: 80
                 text:
                   type: string
-                  minLength: 1
-                  maxLength: 1000
+                  maxLength: 2000
+            examples:
+              default:
+                value:
+                  author: Alice
+                  text: Hello from client
       responses:
         '201':
-          description: Created message
+          description: Created
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Message'
+              examples:
+                default:
+                  value:
+                    _id: 665e2d5a8a4f4d4a7a0c9999
+                    author: Alice
+                    text: Hello from client
+                    createdAt: 2025-01-01T10:05:00.000Z
+                    updatedAt: 2025-01-01T10:05:00.000Z
         '400':
           description: Validation error
           content:
             application/json:
-              schema:
-                type: object
-                properties:
-                  error:
-                    type: string
+              examples:
+                missingAuthor:
+                  value:
+                    error: author is required and must be a non-empty string
+                longText:
+                  value:
+                    error: text must be at most 2000 characters
         '500':
           description: Server error
           content:
             application/json:
-              schema:
-                type: object
-                properties:
-                  error:
-                    type: string
+              example:
+                error: Unexpected error details
+
 components:
   schemas:
     Message:
@@ -203,31 +209,11 @@ components:
         updatedAt:
           type: string
           format: date-time
-    ChatMessage:
-      type: object
-      properties:
-        _id:
-          type: string
-        chatId:
-          type: string
-        senderId:
-          type: string
-        text:
-          type: string
-        createdAt:
-          type: string
-          format: date-time
-    ChatThread:
-      type: object
-      properties:
-        _id:
-          type: string
-        title:
-          type: string
-        participants:
-          type: array
-          items:
-            type: string
-        createdAt:
-          type: string
-          format: date-time
+
+x-examples:
+  curl-list:
+    command: >-
+      curl -G 'http://localhost:3001/api/chat/messages' --data-urlencode 'limit=50' --data-urlencode 'before=2025-01-01T00:00:00.000Z'
+  curl-create:
+    command: >-
+      curl -X POST 'http://localhost:3001/api/chat/messages' -H 'Content-Type: application/json' -d '{"author":"Alice","text":"Hello from client"}'

@@ -26,7 +26,7 @@ router.get('/status', async (req, res) => {
 });
 
 // Messages endpoints
-router.get('/messages', listMessages);
-router.post('/messages', createMessage);
+router.get('/chat/messages', listMessages);
+router.post('/chat/messages', createMessage);
 
 module.exports = router;

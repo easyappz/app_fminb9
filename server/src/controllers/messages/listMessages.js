@@ -1,39 +1,50 @@
-const { Message } = require('@src/models/Message');
+const Message = require('@src/models/Message');
 
-module.exports = async (req, res) => {
+module.exports = async function listMessages(req, res) {
   try {
-    const limitRaw = req.query.limit;
-    let limit = 50;
+    const limitParam = parseInt(req.query.limit, 10);
+    let limit = Number.isNaN(limitParam) ? 50 : limitParam;
+    if (limit <= 0) limit = 50;
+    if (limit > 100) limit = 100;
 
-    if (typeof limitRaw !== 'undefined') {
-      const parsed = parseInt(limitRaw, 10);
-      if (!Number.isNaN(parsed) && parsed > 0) {
-        limit = parsed;
+    const beforeStr = req.query.before;
+    let beforeDate = null;
+    if (beforeStr) {
+      const d = new Date(beforeStr);
+      if (isNaN(d.getTime())) {
+        return res.status(400).json({ error: 'Invalid "before" date format' });
       }
-    }
-
-    if (limit > 200) {
-      limit = 200;
+      beforeDate = d;
     }
 
     const filter = {};
-    const { before } = req.query;
-
-    if (typeof before !== 'undefined') {
-      const date = new Date(before);
-      if (Number.isNaN(date.getTime())) {
-        return res.status(400).json({ error: "Invalid 'before' parameter. Must be ISO date-time." });
-      }
-      filter.createdAt = { $lt: date };
+    if (beforeDate) {
+      filter.createdAt = { $lt: beforeDate };
     }
 
-    const messages = await Message.find(filter)
+    const items = await Message.find(filter)
       .sort({ createdAt: -1 })
       .limit(limit)
       .lean();
 
-    return res.status(200).json(messages);
-  } catch (error) {
-    return res.status(500).json({ error: error.message });
+    let hasMore = false;
+    let nextBefore = null;
+
+    if (items.length === limit) {
+      const oldest = items[items.length - 1];
+      const moreCount = await Message.countDocuments({ createdAt: { $lt: oldest.createdAt } });
+      hasMore = moreCount > 0;
+      nextBefore = oldest.createdAt && oldest.createdAt.toISOString
+        ? oldest.createdAt.toISOString()
+        : new Date(oldest.createdAt).toISOString();
+    }
+
+    return res.status(200).json({
+      items,
+      hasMore,
+      nextBefore,
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
   }
 };
