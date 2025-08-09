@@ -1,4 +1,6 @@
 const express = require('express');
+const listMessages = require('@src/controllers/messages/listMessages');
+const createMessage = require('@src/controllers/messages/createMessage');
 
 const router = express.Router();
 
@@ -22,5 +24,9 @@ router.get('/status', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// Messages endpoints
+router.get('/messages', listMessages);
+router.post('/messages', createMessage);
 
 module.exports = router;

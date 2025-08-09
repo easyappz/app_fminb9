@@ -92,8 +92,117 @@ paths:
                 properties:
                   error:
                     type: string
+  /messages:
+    get:
+      tags: [Chat]
+      summary: List messages
+      description: Returns messages sorted by createdAt descending. Client can reverse for ascending order.
+      parameters:
+        - in: query
+          name: limit
+          required: false
+          description: Max messages to return (capped at 200). Default 50.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+        - in: query
+          name: before
+          required: false
+          description: ISO date-time. Return messages created before this timestamp.
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Messages list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Message'
+        '400':
+          description: Invalid parameters
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+    post:
+      tags: [Chat]
+      summary: Create a message
+      description: Creates a new message. Body size is limited to 1mb on the server.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [author, text]
+              properties:
+                author:
+                  type: string
+                  minLength: 1
+                  maxLength: 100
+                text:
+                  type: string
+                  minLength: 1
+                  maxLength: 1000
+      responses:
+        '201':
+          description: Created message
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
 components:
   schemas:
+    Message:
+      type: object
+      properties:
+        _id:
+          type: string
+        author:
+          type: string
+        text:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
     ChatMessage:
       type: object
       properties:
