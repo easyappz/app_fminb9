@@ -1,0 +1,124 @@
+openapi: 3.0.3
+info:
+  title: HTTP Chat API
+  version: "0.1.0"
+  description: >-
+    HTTP-based chat API scaffold (no sockets). This schema will be extended as features are implemented.
+servers:
+  - url: /api
+tags:
+  - name: System
+    description: System/health endpoints
+  - name: Chat
+    description: HTTP Chat endpoints (to be implemented)
+paths:
+  /health:
+    get:
+      tags: [System]
+      summary: Health check
+      description: Returns service health information
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  uptime:
+                    type: number
+                    description: Process uptime in seconds
+                  timestamp:
+                    type: string
+                    format: date-time
+        '500':
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+  /hello:
+    get:
+      tags: [System]
+      summary: Hello test endpoint
+      responses:
+        '200':
+          description: Returns greeting
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '500':
+          description: Error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+  /status:
+    get:
+      tags: [System]
+      summary: API status
+      responses:
+        '200':
+          description: Status info
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  timestamp:
+                    type: string
+                    format: date-time
+        '500':
+          description: Error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+components:
+  schemas:
+    ChatMessage:
+      type: object
+      properties:
+        _id:
+          type: string
+        chatId:
+          type: string
+        senderId:
+          type: string
+        text:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    ChatThread:
+      type: object
+      properties:
+        _id:
+          type: string
+        title:
+          type: string
+        participants:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
