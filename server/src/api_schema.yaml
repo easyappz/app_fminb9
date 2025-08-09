@@ -1,26 +1,45 @@
-openapi: 3.0.0
+openapi: 3.0.3
 info:
   title: Easyappz Chat API
-  version: 1.0.0
+  version: 1.0.1
   description: |
     HTTP API for a simple chat service. Built with Express and MongoDB (Mongoose).
 
     Base URL: http://localhost:3001/api
-
 servers:
   - url: http://localhost:3001/api
     description: Local server
 
+tags:
+  - name: System
+    description: System/diagnostic endpoints
+  - name: Chat
+    description: Chat messages endpoints
+
 paths:
   /health:
     get:
+      tags: [System]
       summary: Health check
       description: Returns server health information.
+      operationId: getHealth
       responses:
         '200':
           description: OK
           content:
             application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  uptime:
+                    type: number
+                    format: float
+                  timestamp:
+                    type: string
+                    format: date-time
               example:
                 status: ok
                 uptime: 123.456
@@ -29,34 +48,57 @@ paths:
           description: Server error
           content:
             application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
               example:
-                error: Unexpected error details
+                error: Internal error details
 
   /hello:
     get:
+      tags: [System]
       summary: Demo hello endpoint
+      operationId: getHello
       responses:
         '200':
           description: Hello
           content:
             application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Hello from API!
               example:
                 message: Hello from API!
         '500':
           description: Server error
           content:
             application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
               example:
-                error: Unexpected error details
+                error: Internal error details
 
   /status:
     get:
+      tags: [System]
       summary: Demo status endpoint
+      operationId: getStatus
       responses:
         '200':
           description: Status
           content:
             application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  timestamp:
+                    type: string
+                    format: date-time
               example:
                 status: ok
                 timestamp: 2025-01-01T00:00:00.000Z
@@ -64,15 +106,19 @@ paths:
           description: Server error
           content:
             application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
               example:
-                error: Unexpected error details
+                error: Internal error details
 
   /chat/messages:
     get:
+      tags: [Chat]
       summary: List chat messages
       description: |
         Returns a descending (newest first) list of messages with keyset pagination.
         Use `before` to get older messages.
+      operationId: listMessages
       parameters:
         - in: query
           name: limit
@@ -92,22 +138,11 @@ paths:
           description: ISO8601 timestamp; return messages strictly before this time
       responses:
         '200':
-          description: List of messages
+          description: List of messages (fixed object shape)
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  items:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/Message'
-                  hasMore:
-                    type: boolean
-                  nextBefore:
-                    type: string
-                    nullable: true
-                    description: ISO8601 timestamp to use as `before` for the next page
+                $ref: '#/components/schemas/ListMessagesResponse'
               examples:
                 default:
                   value:
@@ -128,32 +163,32 @@ paths:
           description: Invalid request (e.g., bad `before` value)
           content:
             application/json:
-              example:
-                error: Invalid "before" date format
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalidBefore:
+                  value:
+                    error: Invalid "before" date format
         '500':
           description: Server error
           content:
             application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
               example:
-                error: Unexpected error details
+                error: Internal error details
 
     post:
+      tags: [Chat]
       summary: Create a new message
       description: Creates and returns a new message document.
+      operationId: createMessage
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              required: [author, text]
-              properties:
-                author:
-                  type: string
-                  maxLength: 80
-                text:
-                  type: string
-                  maxLength: 2000
+              $ref: '#/components/schemas/CreateMessageRequest'
             examples:
               default:
                 value:
@@ -178,10 +213,15 @@ paths:
           description: Validation error
           content:
             application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
               examples:
                 missingAuthor:
                   value:
                     error: author is required and must be a non-empty string
+                longAuthor:
+                  value:
+                    error: author must be at most 80 characters
                 longText:
                   value:
                     error: text must be at most 2000 characters
@@ -189,8 +229,10 @@ paths:
           description: Server error
           content:
             application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
               example:
-                error: Unexpected error details
+                error: Internal error details
 
 components:
   schemas:
@@ -199,21 +241,65 @@ components:
       properties:
         _id:
           type: string
+          description: MongoDB ObjectId
         author:
           type: string
+          maxLength: 80
         text:
           type: string
+          maxLength: 2000
         createdAt:
           type: string
           format: date-time
         updatedAt:
           type: string
           format: date-time
+      required: [_id, author, text, createdAt, updatedAt]
+
+    ListMessagesResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+        hasMore:
+          type: boolean
+        nextBefore:
+          type: string
+          format: date-time
+          nullable: true
+          description: ISO8601 timestamp to use as `before` for the next page
+      required: [items, hasMore, nextBefore]
+
+    CreateMessageRequest:
+      type: object
+      required: [author, text]
+      properties:
+        author:
+          type: string
+          maxLength: 80
+        text:
+          type: string
+          maxLength: 2000
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]
 
 x-examples:
   curl-list:
     command: >-
       curl -G 'http://localhost:3001/api/chat/messages' --data-urlencode 'limit=50' --data-urlencode 'before=2025-01-01T00:00:00.000Z'
+  curl-list-no-before:
+    command: >-
+      curl -G 'http://localhost:3001/api/chat/messages' --data-urlencode 'limit=20'
   curl-create:
     command: >-
       curl -X POST 'http://localhost:3001/api/chat/messages' -H 'Content-Type: application/json' -d '{"author":"Alice","text":"Hello from client"}'
+  curl-create-bad:
+    command: >-
+      curl -X POST 'http://localhost:3001/api/chat/messages' -H 'Content-Type: application/json' -d '{"author":"","text":""}'
