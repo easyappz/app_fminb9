@@ -1,15 +1,15 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import ErrorBoundary from './ErrorBoundary';
-import ChatPage from './pages/ChatPage';
 import './App.css';
+import Home from './pages/Home';
 
 function App() {
   return (
     <ErrorBoundary>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<ChatPage />} />
+          <Route path="/" element={<Home />} />
         </Routes>
       </BrowserRouter>
     </ErrorBoundary>

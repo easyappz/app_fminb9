@@ -30,6 +30,14 @@ export default function ChatRoom() {
   const [isNameModalOpen, setIsNameModalOpen] = useState(false);
   const [nameInput, setNameInput] = useState('');
   const [text, setText] = useState('');
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const handle = () => setIsMobile(window.innerWidth < 576);
+    handle();
+    window.addEventListener('resize', handle);
+    return () => window.removeEventListener('resize', handle);
+  }, []);
 
   useEffect(() => {
     const stored = localStorage.getItem('chatAuthor');
@@ -87,7 +95,6 @@ export default function ChatRoom() {
 
   useEffect(() => {
     if (stickToBottom) {
-      // Allow list to render before scrolling
       const id = setTimeout(scrollToBottom, 0);
       return () => clearTimeout(id);
     }
@@ -140,7 +147,7 @@ export default function ChatRoom() {
   };
 
   return (
-    <div style={{ maxWidth: 920, margin: '0 auto', padding: 16 }}>
+    <div style={{ maxWidth: 920, margin: '0 auto', padding: isMobile ? 12 : 16, height: '100%' }}>
       {contextHolder}
 
       <Card
@@ -148,11 +155,11 @@ export default function ChatRoom() {
         extra={<Text type="secondary">Обновление каждые 2 сек</Text>}
         styles={{ body: { padding: 0 } }}
       >
-        <div style={{ display: 'flex', flexDirection: 'column', height: '70vh' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
           <div
             ref={listRef}
             onScroll={handleScroll}
-            style={{ flex: 1, overflowY: 'auto', padding: 16, background: '#fafafa' }}
+            style={{ flex: 1, overflowY: 'auto', padding: isMobile ? 12 : 16, background: '#fafafa' }}
           >
             {isError && (
               <div style={{ marginBottom: 12 }}>
@@ -192,9 +199,9 @@ export default function ChatRoom() {
             )}
           </div>
 
-          <div style={{ borderTop: '1px solid #f0f0f0', padding: 12, background: '#fff' }}>
+          <div style={{ borderTop: '1px solid #f0f0f0', padding: isMobile ? 10 : 12, background: '#fff' }}>
             <Space direction="vertical" style={{ width: '100%' }} size={8}>
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                 <Button onClick={() => setIsNameModalOpen(true)}>Изменить имя</Button>
                 <Text type="secondary">Текущее имя: {authorName ? authorName : 'не задано'}</Text>
               </div>
@@ -205,7 +212,8 @@ export default function ChatRoom() {
                 placeholder="Введите сообщение... (Ctrl/⌘ + Enter — отправить)"
                 maxLength={2000}
                 showCount
-                autoSize={{ minRows: 2, maxRows: 6 }}
+                autoSize={{ minRows: 2, maxRows: isMobile ? 4 : 6 }}
+                style={{ maxHeight: isMobile ? 120 : 180 }}
               />
               <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                 <Button type="primary" onClick={handleSend} loading={mutation.isPending} disabled={!text.trim()}>
